@@ -1,16 +1,23 @@
 from numpy import array
 from rdkit import Chem
+from rdkit.Chem import Draw
+from rdkit.Chem.Draw import rdMolDraw2D
+import pandas as pd
 from pandas import DataFrame
 from rdkit.Chem.rdchem import Mol
 from FPSim2 import FPSim2Engine
 import sys
 sys.path.insert(0, './predictors/chemprop')
 from chemprop.utils import load_checkpoint, load_scalers
+from chemprop.args import InterpretArgs
+from chemprop.interpret import interpret
 from os import path
 import requests
 from tqdm import tqdm
 import os
 import os.path as path
+import tempfile
+import time
 
 def get_processed_smi(rdkit_mols: array) -> array:
     """
@@ -87,3 +94,38 @@ def get_similar_mols(kekule_smiles: list, model: str):
         sim_vals.append(res[0][1])
 
     return sim_vals
+
+def get_glowing_molecule(smiles, subs):
+
+    mol = Chem.MolFromSmiles(smiles)
+    patt = Chem.MolFromSmiles(subs)
+    matching = mol.GetSubstructMatch(patt)
+    print(matching)
+
+    d2d = rdMolDraw2D.MolDraw2DSVG(350,300)
+    d2d.DrawMolecule(mol, highlightAtoms=matching)
+    d2d.FinishDrawing()
+
+    return d2d.GetDrawingText()
+
+def get_interpretation(kekule_smiles_df):
+
+    start = time.time()
+    intrprt_df = pd.DataFrame()
+
+    with tempfile.NamedTemporaryFile(delete=True) as temp:
+
+        kekule_smiles_df.to_csv(temp.name + '.csv', index=None)
+
+        # interpretation arguments
+        intrprt_args = [
+        '--data_path', temp.name + '.csv',
+        '--checkpoint_path', './models/pampa/gcnn_model.pt',
+        '--property_id', '1',
+        ]
+
+        intrprt_df = interpret(args=InterpretArgs().parse_args(intrprt_args))
+        temp.close()
+    end = time.time()
+    print(f'{end - start} seconds to interpret {kekule_smiles_df.shape[0]} molecules')
+    return intrprt_df

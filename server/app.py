@@ -147,16 +147,41 @@ def upload_file():
         response['errorMessages'] = 'Only csv, txt or smi files can be processed'
         return jsonify(response)
 
+# @app.route(f'{root_route_path}/api/v1/structure_image/<path:smiles>', methods=['GET'])
+# def get_structure_image(smiles):
+#     try:
+#         mol = Chem.MolFromSmiles(smiles)
+#         d2d = rdMolDraw2D.MolDraw2DSVG(350,300)
+#         d2d.DrawMolecule(mol)
+#         d2d.FinishDrawing()
+#         return Response(d2d.GetDrawingText(), mimetype='image/svg+xml')
+#     except:
+#         return send_file('./images/no_image_available.png', mimetype='image/png')
+
 @app.route(f'{root_route_path}/api/v1/structure_image/<path:smiles>', methods=['GET'])
-def get_structure_image(smiles):
-    try:
-        diclofenac = Chem.MolFromSmiles(smiles)
-        d2d = rdMolDraw2D.MolDraw2DSVG(350,300)
-        d2d.DrawMolecule(diclofenac)
-        d2d.FinishDrawing()
-        return Response(d2d.GetDrawingText(), mimetype='image/svg+xml')
-    except:
-        return send_file('./images/no_image_available.png', mimetype='image/png')
+def get_glowing_image(smiles):
+        if '_' in smiles:
+            mol_smi = smiles.split('_')[0]
+            mol_subs = smiles.split('_')[1]
+            try:
+                mol = Chem.MolFromSmiles(mol_smi)
+                patt = Chem.MolFromSmiles(mol_subs)
+                matching = mol.GetSubstructMatch(patt)
+                d2d = rdMolDraw2D.MolDraw2DSVG(350,300)
+                d2d.DrawMolecule(mol, highlightAtoms=matching)
+                d2d.FinishDrawing()
+                return Response(d2d.GetDrawingText(), mimetype='image/svg+xml')
+            except:
+                return send_file('./images/no_image_available.png', mimetype='image/png')
+        else:
+            try:
+                mol = Chem.MolFromSmiles(smiles)
+                d2d = rdMolDraw2D.MolDraw2DSVG(350,300)
+                d2d.DrawMolecule(mol)
+                d2d.FinishDrawing()
+                return Response(d2d.GetDrawingText(), mimetype='image/svg+xml')
+            except:
+                return send_file('./images/no_image_available.png', mimetype='image/png')
 
 
 def predict_df(df, smi_column_name, models):

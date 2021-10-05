@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
-import numpy as np
-import pandas as pd
 import pickle
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
@@ -21,10 +19,11 @@ from rdkit.Chem.rdchem import Mol
 from numpy import array
 from typing import Tuple
 from ..features.morgan_fp import MorganFPGenerator
-from ..utilities.utilities import get_processed_smi
+from ..utilities.utilities import get_processed_smi, get_interpretation
 from . import pampa_gcnn_scaler, pampa_gcnn_model
 from ..base.gcnn import GcnnBase
 import time
+
 
 class PAMPAPredictior(GcnnBase):
     """
@@ -52,8 +51,14 @@ class PAMPAPredictior(GcnnBase):
             'isSmilesColumn': False
         }
 
+        self._columns_dict['Glowing Molecule'] = {
+            'order': 4,
+            'description': 'glowing molecule',
+            'isSmilesColumn': True
+        }
+
         self.model_name = 'pampa'
-        
+
     def get_predictions(self) -> DataFrame:
         """
         Function that calculates consensus predictions
@@ -72,5 +77,11 @@ class PAMPAPredictior(GcnnBase):
             self.predictions_df['Prediction'] = pd.Series(
                 pd.Series(np.where(gcnn_predictions>=0.5, 'low or moderate permeability', 'high permeability'))
             )
-            
+
+            # trying to fit interpretation here
+            kekule_smiles_df = pd.DataFrame(self.kekule_smiles, columns =['smiles'])
+            intrprt_df = get_interpretation(kekule_smiles_df)
+            self.predictions_df['Glowing Molecule'] = intrprt_df[['smiles', 'rationale_smiles']].agg('_'.join, axis=1)
+
+
         return self.predictions_df
